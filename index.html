@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accesso — Escape Room</title>
+<style>
+  /* ══════════════════════════════════════════
+     PASSWORD DI ACCESSO — modificare qui sotto,
+     nello script in fondo alla pagina
+     ══════════════════════════════════════════ */
+
+  :root {
+    --gold:  #C48A28;
+    --cream: #F2DDAA;
+    --panel: #150C03;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: radial-gradient(ellipse at center, #1E1408 0%, #050204 80%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Palatino, Georgia, serif;
+    color: var(--cream);
+  }
+
+  .riquadro {
+    background: var(--panel);
+    border: 2px solid var(--gold);
+    border-radius: 6px;
+    padding: 48px 52px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(196,138,40,.1);
+  }
+
+  .titolo {
+    color: var(--gold);
+    font-size: 22px;
+    letter-spacing: .1em;
+    margin-bottom: 8px;
+  }
+
+  .sottotitolo {
+    font-style: italic;
+    font-size: 14px;
+    opacity: .55;
+    margin-bottom: 36px;
+    line-height: 1.5;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: .08em;
+    margin-bottom: 8px;
+    text-align: left;
+  }
+
+  input[type="password"] {
+    width: 100%;
+    padding: 11px 14px;
+    font-family: Palatino, Georgia, serif;
+    font-size: 18px;
+    background: #0A0604;
+    border: 1px solid var(--gold);
+    border-radius: 3px;
+    color: var(--cream);
+    outline: none;
+    letter-spacing: .15em;
+    text-align: center;
+    margin-bottom: 22px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  input[type="password"]:focus {
+    border-color: #E8AA48;
+    box-shadow: 0 0 10px rgba(196,138,40,.25);
+  }
+
+  button {
+    width: 100%;
+    padding: 12px;
+    font-family: Palatino, Georgia, serif;
+    font-size: 16px;
+    letter-spacing: .06em;
+    cursor: pointer;
+    border-radius: 3px;
+    background: #382010;
+    color: var(--cream);
+    border: 2px solid var(--gold);
+    transition: background .2s;
+  }
+  button:hover { background: #4A2818; }
+
+  #errore {
+    min-height: 20px;
+    margin-top: 14px;
+    font-size: 13px;
+    font-style: italic;
+    color: #BF8A68;
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  #errore.visibile { opacity: 1; }
+
+  @keyframes scuoti {
+    0%,100% { transform: translateX(0); }
+    20%      { transform: translateX(-8px); }
+    40%      { transform: translateX(8px); }
+    60%      { transform: translateX(-5px); }
+    80%      { transform: translateX(5px); }
+  }
+  .scuoti { animation: scuoti .4s ease; }
+
+  .credits {
+    margin-top: 36px;
+    font-size: 11px;
+    opacity: .28;
+    letter-spacing: .06em;
+  }
+
+  #schermataPartita label { margin-top:4px; }
+  #schermataPartita button { margin-bottom: 10px; }
+  .codice-mostrato {
+    font-size: 34px;
+    letter-spacing: .2em;
+    color: var(--gold);
+    font-weight: bold;
+    text-align: center;
+    padding: 14px;
+    border: 2px dashed var(--gold);
+    border-radius: 6px;
+    background: #0A0604;
+  }
+  .err-codice {
+    min-height: 18px;
+    margin-top: 10px;
+    font-size: 13px;
+    font-style: italic;
+    color: #BF8A68;
+  }
+</style>
+</head>
+<body>
+<div class="riquadro" id="riquadro">
+
+  <div class="titolo">― Il Castello ―</div>
+  <div class="sottotitolo" id="sottotitoloPwd">
+    Le sale in rovina custodiscono ancora i loro segreti.<br>
+    Conosci la parola giusta per entrare?
+  </div>
+
+  <div id="schermataPassword">
+    <label for="pwd">Parola d'ordine</label>
+    <input type="password" id="pwd" autocomplete="off"
+      onkeydown="if(event.key==='Enter')verificaPassword()">
+    <button onclick="verificaPassword()">Entra →</button>
+    <div id="errore">La parola non è quella giusta. Riprova.</div>
+  </div>
+
+  <div id="schermataPartita" style="display:none">
+    <label>Come volete giocare?</label>
+    <button style="margin-bottom:12px" onclick="mostraCrea()">Crea una nuova partita</button>
+    <button onclick="mostraUnisciti()">Unisciti a una partita esistente</button>
+
+    <div id="blocCrea" style="display:none; margin-top:20px; text-align:left">
+      <div class="sottotitolo" style="margin-bottom:12px">
+        Condividete questo codice con tutto il gruppo, su ogni dispositivo:
+      </div>
+      <div id="codiceGenerato" class="codice-mostrato"></div>
+      <button style="margin-top:16px" onclick="avviaConCodice(window._codiceNuovo)">Ho condiviso il codice, entra →</button>
+    </div>
+
+    <div id="blocUnisciti" style="display:none; margin-top:20px">
+      <label for="codiceInput">Codice partita</label>
+      <input type="text" id="codiceInput" autocomplete="off" maxlength="5"
+        style="text-transform:uppercase" onkeydown="if(event.key==='Enter')unisciti()">
+      <button onclick="unisciti()">Entra →</button>
+    </div>
+
+    <div id="erroreCodice" class="err-codice"></div>
+  </div>
+
+  <div class="credits">Prototipo escape room</div>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════
+   CAMBIA LA PASSWORD QUI — solo questa riga:
+   ══════════════════════════════════════════ */
+const PASSWORD = "Prototipo2026";
+/* ══════════════════════════════════════════ */
+
+function verificaPassword() {
+  const input = document.getElementById("pwd").value;
+
+  if (input === PASSWORD) {
+    sessionStorage.setItem("escapeAuthProto", "1");
+    document.getElementById("schermataPassword").style.display = "none";
+    document.getElementById("sottotitoloPwd").textContent =
+      "Password corretta. Ora scegliete come entrare nel castello.";
+    document.getElementById("schermataPartita").style.display = "block";
+  } else {
+    const r = document.getElementById("riquadro");
+    const e = document.getElementById("errore");
+    r.classList.remove("scuoti");
+    void r.offsetWidth;
+    r.classList.add("scuoti");
+    e.classList.add("visibile");
+    document.getElementById("pwd").value = "";
+    document.getElementById("pwd").focus();
+  }
+}
+
+function generaCodice() {
+  const lettere = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // niente O/I per evitare confusione con 0/1
+  let c = "";
+  for (let i = 0; i < 5; i++) c += lettere[Math.floor(Math.random() * lettere.length)];
+  return c;
+}
+
+function mostraCrea() {
+  window._codiceNuovo = generaCodice();
+  document.getElementById("codiceGenerato").textContent = window._codiceNuovo;
+  document.getElementById("blocCrea").style.display = "block";
+  document.getElementById("blocUnisciti").style.display = "none";
+}
+
+function mostraUnisciti() {
+  document.getElementById("blocUnisciti").style.display = "block";
+  document.getElementById("blocCrea").style.display = "none";
+  setTimeout(() => document.getElementById("codiceInput")?.focus(), 50);
+}
+
+function unisciti() {
+  const codice = document.getElementById("codiceInput").value.trim().toUpperCase();
+  if (codice.length < 4) {
+    document.getElementById("erroreCodice").textContent = "Inserisci un codice valido.";
+    return;
+  }
+  avviaConCodice(codice);
+}
+
+function avviaConCodice(codice) {
+  sessionStorage.setItem("codicePartita", codice);
+  if (!sessionStorage.getItem("deviceId")) {
+    sessionStorage.setItem("deviceId", Math.random().toString(36).slice(2, 10));
+  }
+  window.location.href = "stanza1.html";
+}
+
+/* Se già autorizzato ma senza partita scelta, mostra direttamente la schermata partita */
+if (sessionStorage.getItem("escapeAuthProto")) {
+  document.getElementById("schermataPassword").style.display = "none";
+  document.getElementById("schermataPartita").style.display = "block";
+} else {
+  document.getElementById("pwd").focus();
+}
+</script>
+</body>
+</html>

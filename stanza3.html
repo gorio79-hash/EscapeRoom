@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stanza 3 — Prototipo</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+if(!sessionStorage.getItem("escapeAuthProto"))location.replace("index.html");
+if(!sessionStorage.getItem("codicePartita"))location.replace("index.html");
+</script>
+<style>
+:root { --gold:#C48A28; --cream:#F2DDAA; --panel:#150C03; }
+* { box-sizing:border-box; }
+body { margin:0; background:#070503; font-family:Palatino,Georgia,serif; overflow:hidden; }
+#viewer { position:fixed; inset:0; }
+#velo { position:fixed; inset:0; background:rgba(0,0,0,.78); display:none; align-items:center; justify-content:center; z-index:200; }
+#velo.attivo { display:flex; }
+#popup { background:var(--panel); border:2px solid var(--gold); border-radius:6px; padding:28px 34px; max-width:460px; width:90%; color:var(--cream); font-size:17px; line-height:1.6; max-height:85vh; overflow-y:auto; text-align:center; }
+#popup .nome { color:var(--gold); font-size:20px; margin-bottom:12px; letter-spacing:.05em; }
+#popup .testo { margin-bottom:18px; font-style:italic; }
+#popup .corsivo { font-style:italic; opacity:.7; }
+#popup .bottoni { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+#popup .bottoni.colonna { flex-direction:column; align-items:stretch; }
+#popup button, #popup .opzione { padding:9px 22px; font-family:inherit; font-size:15px; cursor:pointer; border-radius:3px; color:var(--cream); background:#241506; border:1px solid var(--gold); }
+#popup .si { background:#382010; border:2px solid var(--gold); }
+#popup .no { background:#380A08; border:2px solid #7A2A1A; }
+#popup .opzione:hover { background:#3A2410; }
+.suggerimento { font-size:12px; opacity:.55; margin-top:12px; font-style:italic; }
+.badge-lettera { margin:14px 0; font-size:15px; }
+.lettera-grande { font-size:52px; color:var(--gold); font-weight:bold; letter-spacing:.1em; margin:10px 0 18px; }
+.rulli { display:flex; gap:14px; justify-content:center; margin:20px 0; }
+.rullo { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.rullo .freccia { background:#241506; border:1px solid var(--gold); color:var(--gold); width:42px; height:30px; border-radius:3px; cursor:pointer; font-size:13px; }
+.lettera-rullo { width:52px; height:60px; display:flex; align-items:center; justify-content:center; background:#0A0604; border:2px solid var(--gold); border-radius:4px; font-size:30px; font-weight:bold; color:var(--cream); letter-spacing:.02em; }
+@keyframes scuotiPopup { 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 40%{transform:translateX(8px);} 60%{transform:translateX(-5px);} 80%{transform:translateX(5px);} }
+.scuoti-popup { animation: scuotiPopup .4s ease; }
+.lista-indizi { text-align:left; }
+.riga-indizio { font-size:14px; padding:8px 0; border-bottom:1px solid rgba(196,138,40,.25); }
+.riga-indizio b { color:var(--gold); text-transform:capitalize; }
+.controllo-fisso { position:fixed; top:18px; z-index:150; width:46px; height:46px; border-radius:50%; background:rgba(21,12,3,.85); border:2px solid var(--gold); color:var(--cream); font-size:19px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,.5); }
+.controllo-fisso.sinistra { left:18px; }
+.controllo-fisso.destra { right:18px; }
+.controllo-fisso:active { transform:scale(.94); }
+.pnlm-hotspot.pnlm-info { background-color:rgba(196,138,40,.3) !important; background-image:none !important; border:2px solid #C48A28 !important; border-radius:50% !important; width:38px !important; height:38px !important; margin-top:-19px !important; margin-left:-19px !important; cursor:pointer !important; animation:pulsaHot 2.5s ease-out infinite; display:flex !important; align-items:center !important; justify-content:center !important; }
+.pnlm-hotspot.pnlm-info::before { content:"?"; color:#F2DDAA; font-family:Georgia,serif; font-weight:bold; font-size:20px; pointer-events:none; }
+.pnlm-hotspot.hotspot-serratura { background-color:rgba(122,42,26,.5) !important; background-image:none !important; border:3px solid #E8AA48 !important; border-radius:6px !important; width:40px !important; height:40px !important; margin-top:-20px !important; margin-left:-20px !important; cursor:pointer !important; animation:pulsaHot 2.5s ease-out infinite; display:flex !important; align-items:center !important; justify-content:center !important; z-index:50 !important; }
+.pnlm-hotspot.hotspot-serratura::before { content:"L"; color:#F2DDAA; font-family:Georgia,serif; font-weight:bold; font-size:20px; pointer-events:none; }
+@keyframes pulsaHot { 0%,100%{box-shadow:0 0 0 0 rgba(196,138,40,.6);} 70%{box-shadow:0 0 0 14px rgba(196,138,40,0);} }
+.pnlm-load-box, .pnlm-about-msg, .pnlm-controls { display:none !important; }
+.etichetta-note { font-size:13px; color:var(--gold); margin-top:16px; text-align:left; }
+.area-note { width:100%; min-height:90px; margin-top:8px; padding:10px; background:#0A0604; border:1px solid var(--gold); border-radius:4px; color:var(--cream); font-family:inherit; font-size:14px; resize:vertical; }
+.badge-codice {
+  position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:150;
+  background:rgba(21,12,3,.8); border:1px solid var(--gold); color:var(--gold);
+  font-size:12px; letter-spacing:.15em; padding:6px 14px; border-radius:14px;
+}
+</style>
+</head>
+<body>
+
+<div id="viewer"></div>
+<div id="velo"><div id="popup"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+<script>
+
+/* ══════════════════════════════════════════
+   CONNESSIONE SUPABASE E STATO CONDIVISO
+   ══════════════════════════════════════════ */
+
+const SUPABASE_URL = "https://vozzdhpwiauchvznfvsi.supabase.co";
+const SUPABASE_KEY = "sb_publishable_aLZfS_idBIXD1mEixlnGsA_FF70VGni";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const CODICE_PARTITA = sessionStorage.getItem("codicePartita");
+
+let statoLocale = { indizi: [], risposte: {}, serrature_sbloccate: [], note_libere: "" };
+let statoCaricato = false;
+
+async function caricaStatoRemoto() {
+  const { data, error } = await sb.from("partite").select("*").eq("codice", CODICE_PARTITA).maybeSingle();
+  if (!data) {
+    const nuova = { codice: CODICE_PARTITA, indizi: [], risposte: {}, serrature_sbloccate: [], note_libere: "" };
+    await sb.from("partite").insert(nuova);
+    statoLocale = nuova;
+  } else {
+    statoLocale = data;
+  }
+  statoCaricato = true;
+}
+
+async function salvaStatoRemoto() {
+  const { codice, indizi, risposte, serrature_sbloccate, note_libere } = statoLocale;
+  await sb.from("partite").update({ indizi, risposte, serrature_sbloccate, note_libere,
+    aggiornato_il: new Date().toISOString() }).eq("codice", codice);
+}
+
+function iscrivitiAggiornamenti() {
+  sb.channel("partita-" + CODICE_PARTITA)
+    .on("postgres_changes",
+      { event: "UPDATE", schema: "public", table: "partite", filter: `codice=eq.${CODICE_PARTITA}` },
+      payload => {
+        statoLocale = payload.new;
+        // Se il taccuino è aperto, aggiornalo subito con i nuovi dati
+        if (document.getElementById("velo").classList.contains("attivo") &&
+            document.querySelector("#popup #areaNote")) {
+          apriTaccuino();
+        }
+      })
+    .subscribe();
+}
+
+function aggiungiIndizio(id, testo, stanza) {
+  if (!statoLocale.indizi.find(i => i.id === id)) {
+    statoLocale.indizi.push({ id, testo, stanza });
+    salvaStatoRemoto();
+  }
+}
+function registraRisposta(quizId, lettera) {
+  statoLocale.risposte[quizId] = lettera;
+  salvaStatoRemoto();
+}
+function serraturaSbloccata(stanzaId) {
+  return statoLocale.serrature_sbloccate.includes(stanzaId);
+}
+function sbloccaSerratura(stanzaId) {
+  if (!statoLocale.serrature_sbloccate.includes(stanzaId)) {
+    statoLocale.serrature_sbloccate.push(stanzaId);
+    salvaStatoRemoto();
+  }
+}
+function salvaNoteLibere(testo) {
+  statoLocale.note_libere = testo;
+  salvaStatoRemoto();
+}
+
+function escapeHtml(str) {
+  return (str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function mostraPopup(html) {
+  document.getElementById("popup").innerHTML = html;
+  document.getElementById("velo").classList.add("attivo");
+}
+function chiudiPopup() {
+  document.getElementById("velo").classList.remove("attivo");
+  document.getElementById("popup").innerHTML = "";
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const velo = document.getElementById("velo");
+  velo.addEventListener("click", e => { if (e.target === velo) chiudiPopup(); });
+});
+
+function apriQuiz(quiz) {
+  const giaRisolto = statoLocale.risposte[quiz.id];
+  if (giaRisolto) {
+    mostraPopup(`
+      <div class="nome">― Indizio ―</div>
+      <div class="testo">${quiz.domanda}</div>
+      <div class="badge-lettera">Lettera raccolta: <b>${giaRisolto}</b></div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Chiudi</button></div>
+    `);
+    return;
+  }
+  const opzioniHtml = quiz.opzioni.map((o, i) =>
+    `<button class="opzione" onclick="rispondiQuiz('${quiz.id}', ${i})">${o}</button>`
+  ).join("");
+  mostraPopup(`
+    <div class="nome">― Indizio ―</div>
+    <div class="testo">${quiz.domanda}</div>
+    <div class="bottoni colonna" id="opzioniQuiz">${opzioniHtml}</div>
+    <div class="suggerimento">Non la sai a memoria? Prova a cercarla online o a chiederla a un'IA.</div>
+  `);
+  window._quizAttivo = quiz;
+}
+
+function rispondiQuiz(quizId, indice) {
+  const quiz = window._quizAttivo;
+  if (!quiz || quiz.id !== quizId) return;
+  if (indice === quiz.corretta) {
+    registraRisposta(quiz.id, quiz.lettera);
+    aggiungiIndizio(quiz.id, `${quiz.domanda} → lettera ${quiz.lettera}`, quiz.stanza);
+    mostraPopup(`
+      <div class="nome">― Corretto ―</div>
+      <div class="testo">Hai guadagnato la lettera:</div>
+      <div class="lettera-grande">${quiz.lettera}</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup()">Chiudi</button></div>
+    `);
+  } else {
+    document.querySelector("#popup .testo").innerHTML =
+      `<span style="color:#BF8A68">Risposta errata. Riprova.</span><br><br>${quiz.domanda}`;
+  }
+}
+
+const LETTERE_RULLO = ["A", "B", "C", "D"];
+
+function apriSerratura(config) {
+  if (serraturaSbloccata(config.stanzaId)) {
+    mostraPopup(`
+      <div class="nome">― Serratura ―</div>
+      <div class="testo">La serratura è già aperta. Puoi proseguire.</div>
+      <div class="bottoni">
+        <button class="si" onclick="chiudiPopup(); ${config.vaiAvantiJS || ''}">Prosegui →</button>
+        <button class="no" onclick="chiudiPopup()">Chiudi</button>
+      </div>
+    `);
+    return;
+  }
+  window._rulli = [0, 0, 0, 0];
+  window._serraturaConfig = config;
+  mostraPopup(`
+    <div class="nome">― Serratura a combinazione ―</div>
+    <div class="testo">Componi la sequenza di 4 lettere usando gli indizi raccolti.</div>
+    <div class="rulli">
+      ${[0,1,2,3].map(i => `
+        <div class="rullo">
+          <button class="freccia" onclick="ruotaRullo(${i}, 1)">▲</button>
+          <div class="lettera-rullo" id="rullo${i}">A</div>
+          <button class="freccia" onclick="ruotaRullo(${i}, -1)">▼</button>
+        </div>
+      `).join("")}
+    </div>
+    <div id="feedbackSerratura" class="suggerimento" style="min-height:18px"></div>
+    <div class="bottoni" style="margin-top:14px">
+      <button class="si" onclick="verificaSerratura()">Apri</button>
+      <button class="no" onclick="chiudiPopup()">Chiudi</button>
+    </div>
+  `);
+}
+
+function ruotaRullo(indice, direzione) {
+  const n = LETTERE_RULLO.length;
+  window._rulli[indice] = (window._rulli[indice] + direzione + n) % n;
+  document.getElementById(`rullo${indice}`).textContent = LETTERE_RULLO[window._rulli[indice]];
+}
+
+function verificaSerratura() {
+  const config = window._serraturaConfig;
+  const combinazione = window._rulli.map(i => LETTERE_RULLO[i]);
+  const corretta = config.sequenza;
+  if (combinazione.every((l, i) => l === corretta[i])) {
+    sbloccaSerratura(config.stanzaId);
+    mostraPopup(`
+      <div class="nome">― Click! ―</div>
+      <div class="testo">La serratura si apre.</div>
+      <div class="bottoni"><button class="si" onclick="chiudiPopup(); ${config.vaiAvantiJS || ''}">Prosegui →</button></div>
+    `);
+  } else {
+    document.getElementById("feedbackSerratura").textContent = "Combinazione errata. Riprova.";
+    const box = document.querySelector("#popup");
+    box.classList.remove("scuoti-popup");
+    void box.offsetWidth;
+    box.classList.add("scuoti-popup");
+  }
+}
+
+function apriTaccuino() {
+  const righe = statoLocale.indizi.length
+    ? statoLocale.indizi.map(i => `<div class="riga-indizio"><b>${i.stanza}</b> — ${i.testo}</div>`).join("")
+    : `<div class="testo corsivo">Nessun indizio raccolto finora.</div>`;
+  mostraPopup(`
+    <div class="nome">― Taccuino condiviso ―</div>
+    <div class="lista-indizi">${righe}</div>
+    <div class="etichetta-note">Appunti del gruppo (visibili a tutti):</div>
+    <textarea id="areaNote" class="area-note" placeholder="Scrivete qui le vostre deduzioni…"
+      oninput="salvaNoteLibere(this.value)">${escapeHtml(statoLocale.note_libere)}</textarea>
+    <div class="bottoni" style="margin-top:16px"><button class="si" onclick="chiudiPopup()">Chiudi</button></div>
+  `);
+}
+
+function iniettaControlliFissi(stanzaPrecedenteUrl) {
+  const div = document.createElement("div");
+  div.innerHTML = `
+    <button id="btnIndietro" class="controllo-fisso sinistra" title="Torna indietro">←</button>
+    <button id="btnTaccuino" class="controllo-fisso destra" title="Taccuino">📒</button>
+    <div class="badge-codice">Partita: ${CODICE_PARTITA}</div>
+  `;
+  document.body.appendChild(div);
+  const btnIndietro = document.getElementById("btnIndietro");
+  if (stanzaPrecedenteUrl) {
+    btnIndietro.addEventListener("click", () => { window.location.href = stanzaPrecedenteUrl; });
+  } else {
+    btnIndietro.disabled = true;
+    btnIndietro.style.opacity = "0.3";
+    btnIndietro.style.cursor = "default";
+  }
+  document.getElementById("btnTaccuino").addEventListener("click", apriTaccuino);
+}
+
+/* ══════════════════════════════════════════
+   CONFIGURAZIONE STANZA 1 (dati di prova —
+   sostituire domande, lettere e immagine)
+   ══════════════════════════════════════════ */
+
+const STANZA_ID = "stanza3";
+
+const QUIZ_STANZA = [
+  { id:"s3q1", stanza:STANZA_ID, lettera:"D",
+    domanda:"Che colore predomina sulle pareti di questa sala?",
+    opzioni:["Verde bosco","Bordeaux","Blu notte","Grigio perla"], corretta:1 },
+  { id:"s3q2", stanza:STANZA_ID, lettera:"A",
+    domanda:"Su cosa poggia il busto più grande della sala?",
+    opzioni:["Un piedistallo in legno scuro","Il pavimento","Un tavolo di marmo","Una mensola"], corretta:0 },
+  { id:"s3q3", stanza:STANZA_ID, lettera:"B",
+    domanda:"I quadri appesi rappresentano soprattutto...",
+    opzioni:["Paesaggi","Ritratti","Nature morte","Scene di battaglia"], corretta:1 },
+  { id:"s3q4", stanza:STANZA_ID, lettera:"C",
+    domanda:"Da dove entra la luce naturale nella sala?",
+    opzioni:["Lucernario","Porta a vetri","Finestra laterale","Non entra luce naturale"], corretta:2 },
+];
+
+const SEQUENZA_CORRETTA = QUIZ_STANZA.map(q => q.lettera); // ["B","D","A","C"]
+
+let viewer;
+
+async function avviaStanza() {
+  mostraPopup(`<div class="nome">― Caricamento ―</div><div class="testo corsivo">Sto entrando nella partita ${CODICE_PARTITA}…</div>`);
+  await caricaStatoRemoto();
+  iscrivitiAggiornamenti();
+  chiudiPopup();
+
+  viewer = pannellum.viewer("viewer", {
+    type: "equirectangular",
+    panorama: "https://pannellum.org/images/cerro-toco-0.jpg",
+    autoLoad: true,
+    showControls: false,
+    hotSpots: [
+      { pitch:-6,  yaw:0,   type:"info", text:"Domanda 1",
+        clickHandlerFunc:()=>apriQuiz(QUIZ_STANZA[0]) },
+      { pitch:-4,  yaw:60,  type:"info", text:"Domanda 2",
+        clickHandlerFunc:()=>apriQuiz(QUIZ_STANZA[1]) },
+      { pitch:-8,  yaw:120, type:"info", text:"Domanda 3",
+        clickHandlerFunc:()=>apriQuiz(QUIZ_STANZA[2]) },
+      { pitch:2,   yaw:180, type:"info", text:"Domanda 4",
+        clickHandlerFunc:()=>apriQuiz(QUIZ_STANZA[3]) },
+      { pitch:10,  yaw:-120,type:"info", text:"Approfondimento",
+        clickHandlerFunc:()=>mostraNota() },
+      { pitch:-2,  yaw:-60, type:"info", cssClass:"hotspot-serratura", text:"Serratura",
+        clickHandlerFunc:()=>apriSerratura({
+          stanzaId: STANZA_ID,
+          sequenza: SEQUENZA_CORRETTA,
+          vaiAvantiJS: "mostraFinale()"
+        }) },
+    ]
+  });
+
+  iniettaControlliFissi("stanza2.html");
+}
+
+document.addEventListener("DOMContentLoaded", avviaStanza);
+
+function mostraNota() {
+  mostraPopup(`
+    <div class="nome">― L'ultima sala ―</div>
+    <div class="testo corsivo">
+      Qui si conclude il percorso. Ogni indizio raccolto nelle
+      stanze precedenti resta consultabile nel taccuino.
+    </div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Chiudi</button></div>
+  `);
+}
+
+function mostraFinale() {
+  mostraPopup(`
+    <div class="nome">― Hai completato il prototipo ―</div>
+    <div class="testo">Tutte e tre le serrature sono state aperte.</div>
+    <div class="bottoni"><button class="si" onclick="chiudiPopup()">Chiudi</button></div>
+  `);
+}
+</script>
+</body>
+</html>
